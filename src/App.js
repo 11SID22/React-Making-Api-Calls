@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import MoviesList from './components/MoviesList';
 import './App.css';
 
@@ -9,11 +9,12 @@ function App() {
   const [isRetrying, setIsRetrying] = useState(false); // Track if retrying
   const retryTimeoutRef = useRef(null); // To store the retry timeout ID
 
-  const fetchMoviesHandler = async () => {
+
+  const fetchMoviesHandler = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('https://swapi.dev/api/film/');
+      const response = await fetch('https://swapi.dev/api/films/');
       if (!response.ok) {
         throw new Error('Something went wrong... Retrying');
       }
@@ -35,7 +36,11 @@ function App() {
       retryTimeoutRef.current = setTimeout(fetchMoviesHandler, 5000); // Retry after 5 seconds
     }
     setIsLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
 
   const cancelRetryHandler = () => {
     setIsRetrying(false); // Stop retrying
