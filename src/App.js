@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import MoviesList from './components/MoviesList';
 import './App.css';
+import AddMovie from './components/AddMovie';
 
 function App() {
   const [movies, setMovies] = useState([]);
@@ -14,21 +15,25 @@ function App() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('https://swapi.dev/api/films/');
+      const response = await fetch('https://flash-99933-default-rtdb.firebaseio.com/movies.json');
       if (!response.ok) {
         throw new Error('Something went wrong... Retrying');
       }
       const data = await response.json();
+      console.log(data);
 
-      const transformedMovies = data.results.map((movieData) => {
-        return {
-          id: movieData.episode_id,
-          title: movieData.title,
-          openingText: movieData.opening_crawl,
-          releaseDate: movieData.release_date,
-        };
-      });
-      setMovies(transformedMovies);
+      const loadedMovies = [];
+
+      for (const key in data) {
+        loadedMovies.push({
+          id: key,
+          title: data[key].title,
+          openingText: data[key].openingText,
+          releaseDate: data[key].releaseDate
+        });
+      }
+
+      setMovies(loadedMovies);
       setIsRetrying(false); // Stop retrying when successful
     } catch (error) {
       setError(error.message);
@@ -50,6 +55,19 @@ function App() {
     setError('Retrying canceled');
   };
 
+  const addMovieHandler = async (movie) => {
+    // fetch can both receive and send data
+    const response = await fetch('https://flash-99933-default-rtdb.firebaseio.com/movies.json', {
+      method: 'POST',   // POST method to send data to api
+      body: JSON.stringify(movie),  // to convert the js obj to json
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await response.json();
+    console.log(data);
+  };
+
   let content = <p>Found no movies</p>;
 
   if (movies.length > 0) {
@@ -66,6 +84,9 @@ function App() {
 
   return (
     <React.Fragment>
+      <section>
+        <AddMovie onAddMovie={addMovieHandler} />
+      </section>
       <section>
         <button onClick={fetchMoviesHandler}>Fetch Movies</button>
         {isRetrying && <button onClick={cancelRetryHandler}>Cancel Retry</button>}
