@@ -7,9 +7,8 @@ function App() {
   const [movies, setMovies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isRetrying, setIsRetrying] = useState(false); // Track if retrying
-  const retryTimeoutRef = useRef(null); // To store the retry timeout ID
-
+  const [isRetrying, setIsRetrying] = useState(false);
+  const retryTimeoutRef = useRef(null);
 
   const fetchMoviesHandler = useCallback(async () => {
     setIsLoading(true);
@@ -20,25 +19,23 @@ function App() {
         throw new Error('Something went wrong... Retrying');
       }
       const data = await response.json();
-      console.log(data);
 
       const loadedMovies = [];
-
       for (const key in data) {
         loadedMovies.push({
           id: key,
           title: data[key].title,
           openingText: data[key].openingText,
-          releaseDate: data[key].releaseDate
+          releaseDate: data[key].releaseDate,
         });
       }
 
       setMovies(loadedMovies);
-      setIsRetrying(false); // Stop retrying when successful
+      setIsRetrying(false);
     } catch (error) {
       setError(error.message);
-      setIsRetrying(true); // Start retrying
-      retryTimeoutRef.current = setTimeout(fetchMoviesHandler, 5000); // Retry after 5 seconds
+      setIsRetrying(true);
+      retryTimeoutRef.current = setTimeout(fetchMoviesHandler, 5000);
     }
     setIsLoading(false);
   }, []);
@@ -48,30 +45,58 @@ function App() {
   }, [fetchMoviesHandler]);
 
   const cancelRetryHandler = () => {
-    setIsRetrying(false); // Stop retrying
+    setIsRetrying(false);
     if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current); // Clear the retry timeout
+      clearTimeout(retryTimeoutRef.current);
     }
     setError('Retrying canceled');
   };
 
   const addMovieHandler = async (movie) => {
-    // fetch can both receive and send data
-    const response = await fetch('https://flash-99933-default-rtdb.firebaseio.com/movies.json', {
-      method: 'POST',   // POST method to send data to api
-      body: JSON.stringify(movie),  // to convert the js obj to json
-      headers: {
-        'Content-Type': 'application/json'
+    try {
+      const response = await fetch('https://flash-99933-default-rtdb.firebaseio.com/movies.json', {
+        method: 'POST',
+        body: JSON.stringify(movie),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      console.log(data);
+
+      // Adding the newly added movie to the movies state
+      const newMovie = {
+        id: data.name, // Firebase returns the unique ID in the response
+        ...movie,      // Spread the movie object (title, openingText, releaseDate)
+      };
+
+      setMovies((prevMovies) => [...prevMovies, newMovie]); // Add the new movie to the existing movies
+    } catch (error) {
+      setError('Could not add movie.');
+    }
+  };
+
+  const deleteMovieHandler = async (id) => {
+    try {
+      const response = await fetch(`https://flash-99933-default-rtdb.firebaseio.com/movies/${id}.json`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete the movie');
       }
-    });
-    const data = await response.json();
-    console.log(data);
+
+      setMovies((prevMovies) => prevMovies.filter((movie) => movie.id !== id));
+    } catch (error) {
+      setError('Could not delete the movie.');
+    }
   };
 
   let content = <p>Found no movies</p>;
 
   if (movies.length > 0) {
-    content = <MoviesList movies={movies} />;
+    content = <MoviesList movies={movies} onDeleteMovie={deleteMovieHandler} />;
   }
 
   if (error) {
